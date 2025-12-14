@@ -1,0 +1,13 @@
+[Unit]
+Description=Forwarder Bot
+After=network.target
+
+[Service]
+ExecStart=/home/vps/forwardbot/bot
+WorkingDirectory=/home/vps/forwardbot
+Restart=always
+RestartSec=2
+EnvironmentFile=/home/vps/forwardbot/.env
+
+[Install]
+WantedBy=default.target
