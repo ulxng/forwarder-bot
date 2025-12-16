@@ -12,12 +12,13 @@ import (
 )
 
 type App struct {
-	InboxChatID tele.ChatID
+	inboxChatID            tele.ChatID
+	sendToOwnerPrivateChat bool
 }
 
 type options struct {
 	BotToken    string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
-	InboxChatID int    `long:"chat_id" env:"INBOX_CHAT_ID" required:"true" description:"chat to send message to"`
+	InboxChatID int    `long:"chat_id" env:"INBOX_CHAT_ID" required:"false" description:"chat to send message to"`
 }
 
 func main() {
@@ -38,7 +39,8 @@ func main() {
 
 func run(opts options) error {
 	a := &App{
-		InboxChatID: tele.ChatID(opts.InboxChatID),
+		inboxChatID:            tele.ChatID(opts.InboxChatID),
+		sendToOwnerPrivateChat: true,
 	}
 	pref := tele.Settings{
 		Token:  opts.BotToken,
@@ -85,7 +87,11 @@ func (a *App) handleReceived(c tele.Context) error {
 	} else {
 		m = receivedMsg.Text
 	}
-	sent, err := c.Bot().Send(a.InboxChatID, m)
+	inboxChat, err := a.extractInboxChatID(receivedMsg.BusinessConnectionID, c.Bot())
+	if err != nil {
+		return fmt.Errorf("extractInboxChatID: %w", err)
+	}
+	sent, err := c.Bot().Send(inboxChat, m)
 	if err != nil {
 		return fmt.Errorf("send: %w", err)
 	}
@@ -99,4 +105,15 @@ func (a *App) handleReceived(c tele.Context) error {
 		return fmt.Errorf("reply: %w", err)
 	}
 	return nil
+}
+
+func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tele.Recipient, error) {
+	if !a.sendToOwnerPrivateChat {
+		return a.inboxChatID, nil
+	}
+	bc, err := bot.BusinessConnection(businessConnectionID)
+	if err != nil {
+		return nil, fmt.Errorf("businessConnection: %w", err)
+	}
+	return bc.Sender, nil
 }
