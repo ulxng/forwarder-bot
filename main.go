@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -12,20 +11,26 @@ import (
 )
 
 type App struct {
-	inboxChatID            tele.ChatID
-	sendToOwnerPrivateChat bool
+	inboxChatID               tele.ChatID
+	forwardToOwnerPrivateChat bool
 }
 
 type options struct {
-	BotToken    string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
-	InboxChatID int    `long:"chat_id" env:"INBOX_CHAT_ID" required:"false" description:"chat to send message to"`
+	BotToken string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
+
+	InboxChatID    int  `long:"chat" env:"INBOX_CHAT_ID" required:"false" description:"chat to send message to"`
+	ForwardToOwner bool `long:"to-owner" env:"FORWARD_TO_OWNER" required:"false"`
 }
 
 func main() {
 	var opts options
 	p := flags.NewParser(&opts, flags.PrintErrors|flags.PassDoubleDash|flags.HelpFlag)
 	if _, err := p.Parse(); err != nil {
-		os.Exit(1)
+		log.Fatal(err)
+	}
+
+	if opts.InboxChatID == 0 && !opts.ForwardToOwner {
+		log.Fatal("You must specify an chat ID (INBOX_CHAT_ID) or set FORWARD_TO_OWNER=true")
 	}
 
 	log.Println("bot started")
@@ -39,8 +44,8 @@ func main() {
 
 func run(opts options) error {
 	a := &App{
-		inboxChatID:            tele.ChatID(opts.InboxChatID),
-		sendToOwnerPrivateChat: true,
+		inboxChatID:               tele.ChatID(opts.InboxChatID),
+		forwardToOwnerPrivateChat: opts.ForwardToOwner,
 	}
 	pref := tele.Settings{
 		Token:  opts.BotToken,
@@ -81,6 +86,10 @@ func (a *App) handleEdited(c tele.Context) error {
 
 func (a *App) handleReceived(c tele.Context) error {
 	receivedMsg := c.Update().BusinessMessage
+	if receivedMsg.Chat.ID != receivedMsg.Sender.ID {
+		//skip owner messages
+		return nil
+	}
 	var m any
 	if receivedMsg.Media() != nil {
 		m = receivedMsg.Media()
@@ -108,7 +117,7 @@ func (a *App) handleReceived(c tele.Context) error {
 }
 
 func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tele.Recipient, error) {
-	if !a.sendToOwnerPrivateChat {
+	if !a.forwardToOwnerPrivateChat {
 		return a.inboxChatID, nil
 	}
 	bc, err := bot.BusinessConnection(businessConnectionID)
