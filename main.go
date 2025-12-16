@@ -49,7 +49,8 @@ func run(opts options) error {
 		return fmt.Errorf("tele.NewBot: %w", err)
 	}
 
-	bot.Handle("/start", a.ping)
+	bot.Handle("/start", a.help)
+	bot.Handle("/ping", a.ping)
 	bot.Handle(tele.OnBusinessMessage, a.handleReceived)
 	bot.Handle(tele.OnEditedBusinessMessage, a.handleEdited)
 
@@ -57,8 +58,19 @@ func run(opts options) error {
 	return nil
 }
 
+func (a *App) help(c tele.Context) error {
+	return c.Send("How to use the bot:\n\n" +
+		"1. Go to Telegram Settings -> Telegram Business -> ChatBots\n" +
+		"2. Add this bot \n" +
+		"3. Select the contacts you want to manage\n" +
+		"Done!\n" +
+		"\n" +
+		"❕ Telegram Premium required.",
+	)
+}
+
 func (a *App) ping(c tele.Context) error {
-	return c.Send("pong!")
+	return c.Send("pong")
 }
 
 func (a *App) handleEdited(c tele.Context) error {
