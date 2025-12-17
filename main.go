@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 	"ulxng/forwarder-bot/db"
+	"ulxng/forwarder-bot/messages"
 	"ulxng/forwarder-bot/repository"
 
 	"github.com/jessevdk/go-flags"
@@ -67,14 +68,7 @@ func run(opts options) error {
 }
 
 func (a *App) help(c tele.Context) error {
-	return c.Send("How to use the bot:\n\n" +
-		"1. Go to Telegram Settings -> Telegram Business -> ChatBots\n" +
-		"2. Add this bot \n" +
-		"3. Select the contacts you want to manage\n" +
-		"Done!\n" +
-		"\n" +
-		"❕ Telegram Premium required.",
-	)
+	return c.Send(messages.Help())
 }
 
 func (a *App) ping(c tele.Context) error {
@@ -106,12 +100,7 @@ func (a *App) handleReceived(c tele.Context) error {
 		return fmt.Errorf("send: %w", err)
 	}
 
-	if _, err := c.Bot().Reply(sent, fmt.Sprintf(
-		"from %s %s @%s",
-		receivedMsg.Sender.FirstName,
-		receivedMsg.Sender.LastName,
-		receivedMsg.Sender.Username, // может быть пустым
-	)); err != nil {
+	if _, err := c.Bot().Reply(sent, messages.Signature(*receivedMsg)); err != nil {
 		return fmt.Errorf("reply: %w", err)
 	}
 	return nil
@@ -128,7 +117,7 @@ func (a *App) init(c tele.Context) error {
 		return fmt.Errorf("save: %w", err)
 	}
 
-	return c.Send(fmt.Sprintf("this chat selected to forward messages from %s", c.Sender().Username))
+	return c.Send(messages.Confirm(c.Sender().Username))
 }
 
 func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tele.Recipient, error) {
