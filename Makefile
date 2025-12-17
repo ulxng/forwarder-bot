@@ -13,3 +13,6 @@ deploy:
 	rsync -rzh --progress .env ./release/bot ${SERVER}:${DEPLOY_DIR}
 	rsync -z release/systemd/bot.service ${SERVER}:~/.config/systemd/user/${SERVICE_NAME}
 	ssh ${SERVER} "systemctl --user daemon-reload && systemctl --user restart ${SERVICE_NAME}"
+
+generate:
+	sqlc generate --file db/sqlc/sqlc.yaml

@@ -9,17 +9,17 @@ import (
 	"context"
 )
 
-const getConfigByUserID = `-- name: GetConfigByUserID :one
-SELECT id, user_id, chat_id
+const getChatByUserID = `-- name: GetChatByUserID :one
+SELECT chat_id
 FROM forward_config
 WHERE user_id = ?
 `
 
-func (q *Queries) GetConfigByUserID(ctx context.Context, userID int64) (ForwardConfig, error) {
-	row := q.db.QueryRowContext(ctx, getConfigByUserID, userID)
-	var i ForwardConfig
-	err := row.Scan(&i.ID, &i.UserID, &i.ChatID)
-	return i, err
+func (q *Queries) GetChatByUserID(ctx context.Context, userID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getChatByUserID, userID)
+	var chat_id int64
+	err := row.Scan(&chat_id)
+	return chat_id, err
 }
 
 const saveConfig = `-- name: SaveConfig :exec

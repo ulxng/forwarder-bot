@@ -1,5 +1,5 @@
--- name: GetConfigByUserID :one
-SELECT *
+-- name: GetChatByUserID :one
+SELECT chat_id
 FROM forward_config
 WHERE user_id = ?;
 

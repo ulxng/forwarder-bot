@@ -1,22 +1,27 @@
 package repository
 
-import "ulxng/forwarder-bot/db"
+import (
+	"context"
+	"ulxng/forwarder-bot/db"
+)
 
 type forwardConfigRepository struct {
 	q *db.Queries
 }
 
-func (m *forwardConfigRepository) Save(config ForwardConfig) error {
-
-	return nil
+func (r *forwardConfigRepository) Save(ctx context.Context, config ForwardConfig) error {
+	return r.q.SaveConfig(ctx, db.SaveConfigParams{
+		UserID: config.UserID,
+		ChatID: config.ChatID,
+	})
 }
 
-func (m *forwardConfigRepository) Update(config ForwardConfig) error {
-	return nil
-}
-
-func (m *forwardConfigRepository) FindByUser(userID int64) (*ForwardConfig, error) {
-	return nil, nil
+func (r *forwardConfigRepository) FindChatByUserID(ctx context.Context, userID int64) (int64, error) {
+	id, err := r.q.GetChatByUserID(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 func NewForwardConfigRepository(q *db.Queries) ForwardConfigRepository {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"log"
@@ -122,18 +123,9 @@ func (a *App) init(c tele.Context) error {
 		UserID: userID,
 		ChatID: c.Chat().ID,
 	}
-	found, err := a.configRepository.FindByUser(userID)
-	if err != nil {
-		return fmt.Errorf("findByUser: %w", err)
-	}
-	if found != nil {
-		if err := a.configRepository.Update(conf); err != nil {
-			return fmt.Errorf("update: %w", err)
-		}
-	} else {
-		if err := a.configRepository.Save(conf); err != nil {
-			return fmt.Errorf("save: %w", err)
-		}
+	ctx := context.Background()
+	if err := a.configRepository.Save(ctx, conf); err != nil {
+		return fmt.Errorf("save: %w", err)
 	}
 
 	return c.Send(fmt.Sprintf("this chat selected to forward messages from %s", c.Sender().Username))
@@ -147,12 +139,13 @@ func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tel
 	if bc == nil {
 		return nil, fmt.Errorf("businessConnection not found")
 	}
-	config, err := a.configRepository.FindByUser(bc.UserChatID)
+	ctx := context.Background()
+	chatID, err := a.configRepository.FindChatByUserID(ctx, bc.UserChatID)
 	if err != nil {
 		return nil, fmt.Errorf("findByUser: %w", err)
 	}
-	if config == nil {
+	if chatID == 0 {
 		return bc.Sender, nil
 	}
-	return tele.ChatID(config.ChatID), nil
+	return tele.ChatID(chatID), nil
 }

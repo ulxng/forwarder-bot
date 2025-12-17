@@ -1,13 +1,16 @@
 package repository
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 type MemoryForwardStorage struct {
 	data map[int64]ForwardConfig
 	mu   sync.RWMutex
 }
 
-func (m *MemoryForwardStorage) Save(config ForwardConfig) error {
+func (m *MemoryForwardStorage) Save(ctx context.Context, config ForwardConfig) error {
 	m.mu.Lock()
 	m.data[config.UserID] = config
 	m.mu.Unlock()
@@ -15,22 +18,14 @@ func (m *MemoryForwardStorage) Save(config ForwardConfig) error {
 	return nil
 }
 
-func (m *MemoryForwardStorage) Update(config ForwardConfig) error {
-	m.mu.Lock()
-	m.data[config.UserID] = config
-	m.mu.Unlock()
-
-	return nil
-}
-
-func (m *MemoryForwardStorage) FindByUser(userID int64) (*ForwardConfig, error) {
+func (m *MemoryForwardStorage) FindChatByUserID(ctx context.Context, userID int64) (int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	config, ok := m.data[userID]
 	if !ok {
-		return nil, nil
+		return 0, nil
 	}
-	return &config, nil
+	return config.ChatID, nil
 }
 
 func NewMemoryForwardStorage() *MemoryForwardStorage {
