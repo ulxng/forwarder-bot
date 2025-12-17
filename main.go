@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"log"
 	"time"
-	"ulxng/shadowban-bot/storage"
+	"ulxng/forwarder-bot/db"
+	"ulxng/forwarder-bot/repository"
 
 	"github.com/jessevdk/go-flags"
 	tele "gopkg.in/telebot.v4"
 )
 
 type App struct {
-	storage storage.ForwardStorage
+	configRepository repository.ForwardConfigRepository
 }
 
 type options struct {
@@ -36,7 +37,7 @@ func main() {
 
 func run(opts options) error {
 	a := &App{
-		storage: storage.NewMemoryForwardStorage(),
+		repository: repository.NewMemoryForwardStorage(),
 	}
 	pref := tele.Settings{
 		Token:  opts.BotToken,
@@ -109,12 +110,23 @@ func (a *App) handleReceived(c tele.Context) error {
 }
 
 func (a *App) init(c tele.Context) error {
-	conf := storage.ForwardConfiguration{
-		UserID: c.Sender().ID,
+	userID := c.Sender().ID
+	conf := repository.ForwardConfig{
+		UserID: userID,
 		ChatID: c.Chat().ID,
 	}
-	if err := a.storage.Save(conf); err != nil {
-		return fmt.Errorf("save: %w", err)
+	found, err := a.configRepository.FindByUser(userID)
+	if err != nil {
+		return fmt.Errorf("findByUser: %w", err)
+	}
+	if found != nil {
+		if err := a.configRepository.Update(conf); err != nil {
+			return fmt.Errorf("update: %w", err)
+		}
+	} else {
+		if err := a.configRepository.Save(conf); err != nil {
+			return fmt.Errorf("save: %w", err)
+		}
 	}
 
 	return c.Send(fmt.Sprintf("this chat selected to forward messages from %s", c.Sender().Username))
@@ -128,7 +140,7 @@ func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tel
 	if bc == nil {
 		return nil, fmt.Errorf("businessConnection not found")
 	}
-	config, err := a.storage.FindByUser(bc.UserChatID)
+	config, err := a.configRepository.FindByUser(bc.UserChatID)
 	if err != nil {
 		return nil, fmt.Errorf("findByUser: %w", err)
 	}

@@ -1,4 +1,4 @@
-module ulxng/shadowban-bot
+module ulxng/forwarder-bot
 
 go 1.23.5
 
