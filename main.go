@@ -4,22 +4,18 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"ulxng/shadowban-bot/storage"
 
 	"github.com/jessevdk/go-flags"
-
 	tele "gopkg.in/telebot.v4"
 )
 
 type App struct {
-	inboxChatID               tele.ChatID
-	forwardToOwnerPrivateChat bool
+	storage storage.ForwardStorage
 }
 
 type options struct {
 	BotToken string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
-
-	InboxChatID    int  `long:"chat" env:"INBOX_CHAT_ID" required:"false" description:"chat to send message to"`
-	ForwardToOwner bool `long:"to-owner" env:"FORWARD_TO_OWNER" required:"false"`
 }
 
 func main() {
@@ -27,10 +23,6 @@ func main() {
 	p := flags.NewParser(&opts, flags.PrintErrors|flags.PassDoubleDash|flags.HelpFlag)
 	if _, err := p.Parse(); err != nil {
 		log.Fatal(err)
-	}
-
-	if opts.InboxChatID == 0 && !opts.ForwardToOwner {
-		log.Fatal("You must specify an chat ID (INBOX_CHAT_ID) or set FORWARD_TO_OWNER=true")
 	}
 
 	log.Println("bot started")
@@ -44,8 +36,7 @@ func main() {
 
 func run(opts options) error {
 	a := &App{
-		inboxChatID:               tele.ChatID(opts.InboxChatID),
-		forwardToOwnerPrivateChat: opts.ForwardToOwner,
+		storage: storage.NewMemoryForwardStorage(),
 	}
 	pref := tele.Settings{
 		Token:  opts.BotToken,
@@ -58,6 +49,7 @@ func run(opts options) error {
 
 	bot.Handle("/start", a.help)
 	bot.Handle("/ping", a.ping)
+	bot.Handle("/init", a.init)
 	bot.Handle(tele.OnBusinessMessage, a.handleReceived)
 	bot.Handle(tele.OnEditedBusinessMessage, a.handleEdited)
 
@@ -116,13 +108,32 @@ func (a *App) handleReceived(c tele.Context) error {
 	return nil
 }
 
-func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tele.Recipient, error) {
-	if !a.forwardToOwnerPrivateChat {
-		return a.inboxChatID, nil
+func (a *App) init(c tele.Context) error {
+	conf := storage.ForwardConfiguration{
+		UserID: c.Sender().ID,
+		ChatID: c.Chat().ID,
 	}
+	if err := a.storage.Save(conf); err != nil {
+		return fmt.Errorf("save: %w", err)
+	}
+
+	return c.Send(fmt.Sprintf("this chat selected to forward messages from %s", c.Sender().Username))
+}
+
+func (a *App) extractInboxChatID(businessConnectionID string, bot tele.API) (tele.Recipient, error) {
 	bc, err := bot.BusinessConnection(businessConnectionID)
 	if err != nil {
 		return nil, fmt.Errorf("businessConnection: %w", err)
 	}
-	return bc.Sender, nil
+	if bc == nil {
+		return nil, fmt.Errorf("businessConnection not found")
+	}
+	config, err := a.storage.FindByUser(bc.UserChatID)
+	if err != nil {
+		return nil, fmt.Errorf("findByUser: %w", err)
+	}
+	if config == nil {
+		return bc.Sender, nil
+	}
+	return tele.ChatID(config.ChatID), nil
 }
