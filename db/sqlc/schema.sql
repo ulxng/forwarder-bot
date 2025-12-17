@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS forward_config
+(
+    id      INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL UNIQUE,
+    chat_id INTEGER NOT NULL
+);

@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log"
 	"time"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	tele "gopkg.in/telebot.v4"
+	_ "modernc.org/sqlite"
 )
 
 type App struct {
@@ -16,7 +18,8 @@ type App struct {
 }
 
 type options struct {
-	BotToken string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
+	BotToken        string `long:"token" env:"BOT_TOKEN" required:"true" description:"telegram bot token"`
+	DBConnectionDSN string `long:"dsn" env:"DB_DSN" required:"true" description:"database connection string"`
 }
 
 func main() {
@@ -36,8 +39,12 @@ func main() {
 }
 
 func run(opts options) error {
+	queries, err := db.CreateConnection(opts.DBConnectionDSN)
+	if err != nil {
+		return fmt.Errorf("createConnection: %w", err)
+	}
 	a := &App{
-		repository: repository.NewMemoryForwardStorage(),
+		configRepository: repository.NewForwardConfigRepository(queries),
 	}
 	pref := tele.Settings{
 		Token:  opts.BotToken,
