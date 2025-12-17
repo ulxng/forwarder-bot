@@ -98,7 +98,7 @@ func (a *App) handleReceived(c tele.Context) error {
 	}
 
 	if _, err := c.Bot().Reply(sent, fmt.Sprintf(
-		"from\n%s %s @%s",
+		"from %s %s @%s",
 		receivedMsg.Sender.FirstName,
 		receivedMsg.Sender.LastName,
 		receivedMsg.Sender.Username, // может быть пустым
